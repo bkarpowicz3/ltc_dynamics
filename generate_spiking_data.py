@@ -3,12 +3,13 @@ import matplotlib.pyplot as plt
 from rds.structures import Dataset
 
 class LTCDataset(Dataset): 
-    def generate_spikes():
+    def generate_spikes(self):
         ### define the parameters of the simulation
         trial_length = 10 # length of each trial, s 
-        dt = 0.01 # timestep, s
-
-        num_trials = 2000 # number of trials to simulate 
+        self.dt = 0.01 # timestep, s
+        dt = self.dt
+        self.num_trials = 2000 # number of trials to simulate 
+        num_trials = self.num_trials
         num_ics = 4 # number of initial conditions to sample 
         ics = [(1,0), (0, -1), (-1, 0), (0, 1)] # the set of initial conditions (x1, x2)
 
@@ -103,7 +104,7 @@ class LTCDataset(Dataset):
         return x, spikes, true_rates
 
 
-    def create_dataset(x, spikes, true_rates): 
+    def create_dataset(self, x, spikes, true_rates): 
         # construct data dictionary from simulated spikes
         data_dict={'spikes':spikes, 'lowD':x, 'true_rates':true_rates}
 
@@ -116,19 +117,19 @@ class LTCDataset(Dataset):
 
         # pre-populate the list of dictionaries (number of trials)
         # map everything to None
-        trial_info = [dict(zip(stage_codes.values(), [None]*len(stage_codes))) for _ in range(num_trials)]
+        trial_info = [dict(zip(stage_codes.values(), [None]*len(stage_codes))) for _ in range(self.num_trials)]
 
-        start_times = np.linspace(0, spikes.shape[0]-1000, num_trials)
-        end_times = np.linspace(1000, spikes.shape[0], num_trials)
+        start_times = np.linspace(0, spikes.shape[0]-1000, self.num_trials)
+        end_times = np.linspace(1000, spikes.shape[0], self.num_trials)
 
-        for t in range(0, num_trials):
+        for t in range(0, self.num_trials):
             # subtracting one to make sure that first start time is 0 and ensure proper reconstruction of trials
             trial_info[t]['trialStart'] = start_times[t]
             trial_info[t]['trialEnd'] = end_times[t]
             trial_info[t]['trial_id'] = t+1
             trial_info[t]['good'] = 'good' # dummy variable to be able to select all trials later
 
-        self.init_data_from_dict(data_dict=data_dict, sample_interval=sample_interval, trial_info=trial_info)
+        self.init_data_from_dict(data_dict=data_dict, sample_interval=self.dt, trial_info=trial_info)
 
         print('Data loaded.')
             
@@ -146,10 +147,10 @@ if __name__ == "__main__":
     #select all of the trials
     d.select_trials('good', {'good':'good'})
 
-    lfads_save_path = '/snel/share/share/derived/kastner/model_interaction/runs/interactingRossler_191002/downstreamRossler_191002/lfadsInput/'
-    lfads_load_path = '/snel/share/share/derived/kastner/model_interaction/runs/interactingRossler_191002/downstreamRossler_191002/lfadsOutput/'
+    lfads_save_path = '/snel/home/brianna/projects/deep_learning_project/'
+    lfads_load_path = '/snel/home/brianna/projects/deep_learning_project/'
     
-    chop_params = {'trial_length_s':1, 'trial_olap_s':0, 'bin_size_s': 0.001}      # not chopping data
+    chop_params = {'trial_length_s':10, 'trial_olap_s':0, 'bin_size_s': 0.01}      # not chopping data
     valid_ratio = 0.2
     d.init_lfads(lfads_save_path, lfads_load_path, chop_params, valid_ratio)
 
@@ -159,6 +160,6 @@ if __name__ == "__main__":
         }
 
     # use segments argument to run only trial information 
-    d.create_lfads_data(run_type='continuous', data_select_props=data_select_props)
+    d.create_lfads_data(run_type='segments', data_select_props=data_select_props)
     d.pickle_me(lfads_save_path, True) # saves the Dataset object in case we want to try again with different params
 
