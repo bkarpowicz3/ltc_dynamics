@@ -150,7 +150,7 @@ if __name__ == "__main__":
     lfads_save_path = '/snel/home/brianna/projects/deep_learning_project/'
     lfads_load_path = '/snel/home/brianna/projects/deep_learning_project/'
     
-    chop_params = {'trial_length_s':10, 'trial_olap_s':0, 'bin_size_s': 0.01}      # not chopping data
+    chop_params = {'trial_length_s':1, 'trial_olap_s':0, 'bin_size_s': 0.01}      # not chopping data
     valid_ratio = 0.2
     d.init_lfads(lfads_save_path, lfads_load_path, chop_params, valid_ratio)
 
