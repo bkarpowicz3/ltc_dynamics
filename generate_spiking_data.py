@@ -54,15 +54,19 @@ class LTCDataset(Dataset):
         ax[2].plot(t[0:1000], x3[0:1000])
         plt.show(block=False)
 
+        x_comps = [x1, x2, x3]
+
         ### perform a nonlinear combination of the three above components and plot 
         x = (x1 + x2)**2 + x3**2
+        # center around 0 
+        x = (x - np.mean(x)) / np.std(x)
 
         fig, ax = plt.subplots(4,1)
-        ax[0].plot(t[0:1000], x1[0:1000], color='b')
+        ax[0].plot(t[0:500], x1[0:500], color='b')
         ax[0].set_ylabel('X1')
-        ax[1].plot(t[0:1000], x2[0:1000], color='r')
+        ax[1].plot(t[0:500], x2[0:500], color='r')
         ax[1].set_ylabel('X2')
-        ax[2].plot(t[0:1000], x3[0:1000], color='g')
+        ax[2].plot(t[0:500], x3[0:500], color='g')
         ax[2].set_ylabel('X3')
         # ax[3].plot(t[0:1000], xs[0][0:1000], color='k')
         # ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$ 100Hz')
@@ -88,9 +92,8 @@ class LTCDataset(Dataset):
         def project_to_highd(lowd, highd_proj, log_means):
             # project the low-D data out to high-D space
             z_true = np.dot(lowd, highd_proj) + log_means
-
             # exponential nonlinearity to convert these to firing rates 
-            z_true_rates = np.exp(z_true) + 5
+            z_true_rates = (np.exp(z_true) + 3) * 4
 
             spikes = np.random.poisson(z_true_rates*dt)
 
@@ -99,36 +102,67 @@ class LTCDataset(Dataset):
         # test our high-D projection function 
         spikes, true_rates = project_to_highd(x, highd_proj, log_means)
 
-        # fig = plt.figure(figsize=(8, 6))
-        # ax = fig.add_subplot(111)
-        # fig, ax = plt.subplots(1, 2)
-        # ax[0].imshow(true_rates[0:1000], extent=[0, 10, 0, 100])
-        # ax[1].imshow(spikes[0:1000].T, extent=[0, 10, 0, 100], cmap='binary', vmax=0.1)
-        # plt.xlabel('Time (s)')
-        # plt.ylabel('"Neurons"')
-        # plt.show(block=False)
-
         fig, ax= plt.subplots(4, 1)
-        ax[0].plot(true_rates[0:1000, 0])
+        ax[0].plot(true_rates[0:500, 0])
         ax[0].set_ylabel('Neuron 0 Firing Rate')
-        ax[1].plot(spikes[0:1000, 0])
+        ax[1].plot(spikes[0:500, 0])
         ax[1].set_ylabel('Neuron 0 Spikes')
-        ax[2].plot(true_rates[0:1000, 57])
+        ax[2].plot(true_rates[0:500, 57])
         ax[2].set_ylabel('Neuron 57 Firing Rate')
-        ax[3].plot(spikes[0:1000, 57])
+        ax[3].plot(spikes[0:500, 57])
         ax[3].set_ylabel('Neuron 57 Spikes')
         plt.show(block=False)
-        
-        plt.figure()
-        plt.imshow(true_rates[0:1000])
+
+        fig, ax = plt.subplots(2, 1)
+        ax[0].imshow(true_rates[0:150].T)
+        ax[1].imshow(spikes[0:150].T)
         plt.show(block=False)
 
-        return x, spikes, true_rates
+        # xx = spikes[0:99900,:]
+        # xx_r = np.reshape(xx, (666, 150, 100)) # trials x time x neurons
+        # xx_m = np.mean(xx_r, axis=(0))
+        # plt.figure()
+        # plt.imshow(xx_m.T)
+        # plt.show(block=False)
+
+        # # smoothed spikes 
+        # from scipy import signal
+        # gauss_width = 45.
+        # gauss_bin_std = gauss_width / (1000.0 * dt)
+        # # the window extends 3 x std in either direction
+        # win_len = int(6 * gauss_bin_std)
+
+        # # MRK : a much faster implementation than pandas rolling
+        # window = signal.gaussian(win_len, gauss_bin_std, sym=True)
+        # window /=  np.sum(window)
+        # spike_vals = [spikes[:,i] for i in range(spikes.shape[1])]
+
+        # def filt(args):
+        #     """ MRK: this is used to parallelize spike smoothing
+        #     Parallelized function for filtering spiking data
+        #     """
+        #     x, window = args
+        #     y = signal.lfilter(window, 1., x)
+        #     # shift the signal (acausal filter)
+        #     shift_len = len(window) //2
+        #     y = np.concatenate( [y[shift_len:], np.full(shift_len, np.nan)], axis=0 )
+        #     return y
+
+        # y_list = [filt((x, window)) for x in spike_vals]
+        # smooth_spk = np.vstack(y_list).T
+        # xx = smooth_spk[0:99900,:]
+        # xx_r = np.reshape(xx, (666, 150, 100)) # trials x time x neurons
+        # xx_m = np.mean(xx_r, axis=(0))
+        # plt.figure()
+        # plt.imshow(xx_m.T)
+        # plt.show(block=False)
+
+        return x, x_comps, spikes, true_rates
 
 
-    def create_dataset(self, x, spikes, true_rates): 
+    def create_dataset(self, x, x_comps, spikes, true_rates): 
         # construct data dictionary from simulated spikes
-        data_dict={'spikes':spikes, 'lowD':x, 'true_rates':true_rates}
+        data_dict={'spikes':spikes, 'lowD':x, 'true_rates':true_rates, 'lowD_components': np.hstack(x_comps)}
 
         # stages of trials
         stage_codes = {1:'trialStart',
@@ -141,10 +175,10 @@ class LTCDataset(Dataset):
         # map everything to None
         trial_info = [dict(zip(stage_codes.values(), [None]*len(stage_codes))) for _ in range(self.num_trials)]
 
-        start_times = np.linspace(0, spikes.shape[0]-100, self.num_trials)
-        end_times = np.linspace(100, spikes.shape[0], self.num_trials)
+        start_times = np.linspace(0, spikes.shape[0]-50, self.num_trials)
+        end_times = np.linspace(50, spikes.shape[0], self.num_trials)
 
-        for t in range(0, self.num_trials):
+        for t in range(self.num_trials):
             # subtracting one to make sure that first start time is 0 and ensure proper reconstruction of trials
             trial_info[t]['trialStart'] = start_times[t]
             trial_info[t]['trialEnd'] = end_times[t]
@@ -158,9 +192,8 @@ class LTCDataset(Dataset):
 # main script for creating lfads data from Rossler data
 if __name__ == "__main__":
     d = LTCDataset(name='nonlinearOscillators')
-    x, spikes, true_rates = d.generate_spikes()
-    import pdb; pdb.set_trace()
-    d.create_dataset(x, spikes, true_rates)
+    x, x_comps, spikes, true_rates = d.generate_spikes()
+    d.create_dataset(x, x_comps, spikes, true_rates)
 
     # # rebin into 10ms bins 10/1/19
     # d.resample(target_bin=0.01)
@@ -173,8 +206,8 @@ if __name__ == "__main__":
     lfads_save_path = '/snel/home/brianna/projects/deep_learning_project/'
     lfads_load_path = '/snel/home/brianna/projects/deep_learning_project/'
     
-    chop_params = {'trial_length_s':1, 'trial_olap_s':0, 'bin_size_s': 0.02}      # not chopping data
-    valid_ratio = 0.2
+    chop_params = {'trial_length_s':2, 'trial_olap_s':0, 'bin_size_s': 0.02}      # not chopping data
+    valid_ratio = 0.1
     d.init_lfads(lfads_save_path, lfads_load_path, chop_params, valid_ratio)
 
     data_select_props = {
