@@ -8,7 +8,7 @@ MODEL:
   CO_DIM: 10
   IC_DIM: 100
   GEN_DIM: 100
-  FAC_DIM: 40
+  FAC_DIM: 3
   DROPOUT_RATE: 0.05 # OVERWRITTEN
   CD_RATE: 0.0 # OVERWRITTEN
   CD_PASS_RATE: 0.0 # OVERWRITTEN
@@ -22,10 +22,10 @@ MODEL:
   CI_LAG: 1
 TRAIN:
   DATA:
-    DIR: /snel/share/runs/PBT/paper-fix/lfadslite-testing/data_chaotic
-    PREFIX: chaotic
+    DIR: /snel/home/brianna/projects/deep_learning_project/
+    PREFIX: lfads
   PATIENCE: 5000 # Early stopping should be off
-  BATCH_SIZE: 500
+  BATCH_SIZE: 50
   MAX_EPOCHS: 10000
   MAX_GRAD_NORM: 200.0
   LOSS_SCALE: 10000.0
@@ -48,9 +48,9 @@ TRAIN:
     INCREASE_EPOCH: 50
     IC_WEIGHT: 1.0e-4 # OVERWRITTEN
     CO_WEIGHT:  1.0e-4 # OVERWRITTEN
-  PBT_MODE: True
-  TUNE_MODE: True
+  PBT_MODE: False
+  TUNE_MODE: False
   LOG_HPS: True
   USE_TB: False
-  MODEL_DIR: ~/tmp/lfads_tf2/pbt_validation/chaotic # OVERWRITTEN
+  MODEL_DIR: /snel/home/brianna/projects/deep_learning_project/210426_PBT/pbt_run_4/ # OVERWRITTEN
   OVERWRITE: True
