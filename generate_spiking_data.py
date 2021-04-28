@@ -5,8 +5,8 @@ from rds.structures import Dataset
 class LTCDataset(Dataset): 
     def generate_spikes(self):
         ### define the parameters of the simulation
-        trial_length = 10 # length of each trial, s 
-        self.dt = 0.01 # timestep, s
+        trial_length = 1 # length of each trial, s 
+        self.dt = 0.02 # timestep, s
         dt = self.dt
         self.num_trials = 2000 # number of trials to simulate 
         num_trials = self.num_trials
@@ -38,6 +38,9 @@ class LTCDataset(Dataset):
 
             return x 
 
+        # dts = [0.01, 0.02]
+        # xs = []
+        # for dt in dts:
         ### generate oscillators with three different sets of parameters 
         x1 = oscillator(length, dt, period=1, amplitude=1, ic=1)
         x2 = oscillator(length, dt, period=1.5, amplitude=1, ic=0)
@@ -61,7 +64,9 @@ class LTCDataset(Dataset):
         ax[1].set_ylabel('X2')
         ax[2].plot(t[0:1000], x3[0:1000], color='g')
         ax[2].set_ylabel('X3')
-        ax[3].plot(t[0:1000], x[0:1000], color='k')
+        # ax[3].plot(t[0:1000], xs[0][0:1000], color='k')
+        # ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$ 100Hz')
+        ax[3].plot(t[0:500], x[0:500], color='k')
         ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$')
         plt.show(block=False)
 
@@ -74,7 +79,7 @@ class LTCDataset(Dataset):
 
             # each neuron can also have a different mean "rate"
             # assign these randomly
-            log_means = (np.random.rand(num_neurons) - 0.5) * 0.001
+            log_means = (np.random.rand(num_neurons) - 0.5) * 0.01
 
             return highd_proj, log_means
 
@@ -85,7 +90,7 @@ class LTCDataset(Dataset):
             z_true = np.dot(lowd, highd_proj) + log_means
 
             # exponential nonlinearity to convert these to firing rates 
-            z_true_rates = np.exp(z_true)
+            z_true_rates = np.exp(z_true) + 5
 
             spikes = np.random.poisson(z_true_rates*dt)
 
@@ -94,11 +99,28 @@ class LTCDataset(Dataset):
         # test our high-D projection function 
         spikes, true_rates = project_to_highd(x, highd_proj, log_means)
 
-        fig = plt.figure(figsize=(8, 6))
-        ax = fig.add_subplot(111)
-        ax.imshow(spikes[0:1000].T, extent=[0, 10, 0, 100], cmap='binary', vmax=0.1)
-        plt.xlabel('Time (s)')
-        plt.ylabel('"Neurons"')
+        # fig = plt.figure(figsize=(8, 6))
+        # ax = fig.add_subplot(111)
+        # fig, ax = plt.subplots(1, 2)
+        # ax[0].imshow(true_rates[0:1000], extent=[0, 10, 0, 100])
+        # ax[1].imshow(spikes[0:1000].T, extent=[0, 10, 0, 100], cmap='binary', vmax=0.1)
+        # plt.xlabel('Time (s)')
+        # plt.ylabel('"Neurons"')
+        # plt.show(block=False)
+
+        fig, ax= plt.subplots(4, 1)
+        ax[0].plot(true_rates[0:1000, 0])
+        ax[0].set_ylabel('Neuron 0 Firing Rate')
+        ax[1].plot(spikes[0:1000, 0])
+        ax[1].set_ylabel('Neuron 0 Spikes')
+        ax[2].plot(true_rates[0:1000, 57])
+        ax[2].set_ylabel('Neuron 57 Firing Rate')
+        ax[3].plot(spikes[0:1000, 57])
+        ax[3].set_ylabel('Neuron 57 Spikes')
+        plt.show(block=False)
+        
+        plt.figure()
+        plt.imshow(true_rates[0:1000])
         plt.show(block=False)
 
         return x, spikes, true_rates
@@ -119,8 +141,8 @@ class LTCDataset(Dataset):
         # map everything to None
         trial_info = [dict(zip(stage_codes.values(), [None]*len(stage_codes))) for _ in range(self.num_trials)]
 
-        start_times = np.linspace(0, spikes.shape[0]-1000, self.num_trials)
-        end_times = np.linspace(1000, spikes.shape[0], self.num_trials)
+        start_times = np.linspace(0, spikes.shape[0]-100, self.num_trials)
+        end_times = np.linspace(100, spikes.shape[0], self.num_trials)
 
         for t in range(0, self.num_trials):
             # subtracting one to make sure that first start time is 0 and ensure proper reconstruction of trials
@@ -137,6 +159,7 @@ class LTCDataset(Dataset):
 if __name__ == "__main__":
     d = LTCDataset(name='nonlinearOscillators')
     x, spikes, true_rates = d.generate_spikes()
+    import pdb; pdb.set_trace()
     d.create_dataset(x, spikes, true_rates)
 
     # # rebin into 10ms bins 10/1/19
@@ -150,7 +173,7 @@ if __name__ == "__main__":
     lfads_save_path = '/snel/home/brianna/projects/deep_learning_project/'
     lfads_load_path = '/snel/home/brianna/projects/deep_learning_project/'
     
-    chop_params = {'trial_length_s':1, 'trial_olap_s':0, 'bin_size_s': 0.01}      # not chopping data
+    chop_params = {'trial_length_s':1, 'trial_olap_s':0, 'bin_size_s': 0.02}      # not chopping data
     valid_ratio = 0.2
     d.init_lfads(lfads_save_path, lfads_load_path, chop_params, valid_ratio)
 
