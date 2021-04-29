@@ -139,7 +139,7 @@ if __name__ == "__main__":
         ### perform a nonlinear combination of the three above components and plot 
         x = (x1 + x2)**2 + x3**2
         # center around 0 
-        x = (x - np.mean(x)) #/ np.std(x)
+        # x = (x - np.mean(x)) #/ np.std(x)
 
         fig, ax = plt.subplots(4,1)
         ax[0].plot(t[0:500], x1[0:500], color='b')
@@ -157,6 +157,7 @@ if __name__ == "__main__":
         comps.append(x_comps)
 
     x = np.vstack(xs)
+    x = (x - np.mean(x))/ np.std(x)
     x_comps = np.vstack(comps)
 
     ### project to high-D space 
@@ -181,7 +182,6 @@ if __name__ == "__main__":
     ax[1].imshow(spikes[0:150].T)
     plt.show(block=False)
 
-    
     # split spikes into trials 
     spikes_trials = spikes.reshape((total_trials, int(trial_length/dt), num_neurons))
     inds = random.sample(range(total_trials), total_trials)
