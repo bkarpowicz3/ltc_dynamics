@@ -21,7 +21,7 @@ CFG_PATH = 'ltc_config.yaml'
 # the directory to save PBT runs (usually '~/ray_results')
 PBT_HOME = '/snel/home/brianna/projects/deep_learning_project/210426_PBT/'
 # the name of this PBT run (run will be stored at {PBT_HOME}/{PBT_NAME})
-RUN_NAME = 'pbt_run_5' # the name of the PBT run
+RUN_NAME = 'pbt_run_7' # the name of the PBT run
 # the dataset to train the PBT model on
 DATA_DIR = '/snel/home/brianna/projects/deep_learning_project/'
 DATA_PREFIX = 'lfads'

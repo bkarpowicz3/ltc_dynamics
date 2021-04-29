@@ -8,13 +8,13 @@ class LTCDataset(Dataset):
         trial_length = 1 # length of each trial, s 
         self.dt = 0.02 # timestep, s
         dt = self.dt
-        self.num_trials = 2000 # number of trials to simulate 
+        self.num_trials = 50 # number of trials to simulate 
         num_trials = self.num_trials
         num_ics = 4 # number of initial conditions to sample 
         ics = [(1,0), (0, -1), (-1, 0), (0, 1)] # the set of initial conditions (x1, x2)
 
         period = 1 # oscillator period 
-        amplitudes = range(1,5) # oscillator amplitude 
+        amplitudes = range(1,9) # oscillator amplitude 
 
         num_neurons = 100 # dimension of the high D space
 
@@ -37,44 +37,7 @@ class LTCDataset(Dataset):
             x[:,0] = np.sin(2 * np.pi * t / period + ic*phi) * amplitude 
 
             return x 
-
-        # dts = [0.01, 0.02]
-        # xs = []
-        # for dt in dts:
-        ### generate oscillators with three different sets of parameters 
-        x1 = oscillator(length, dt, period=1, amplitude=1, ic=1)
-        x2 = oscillator(length, dt, period=1.5, amplitude=1, ic=0)
-        x3 = oscillator(length, dt, period=0.5, amplitude=1, ic=0.5)
-
-        ### visualize components of compound system 
-        t = np.linspace(0, length, int(length / dt))
-        fig, ax = plt.subplots(3,1, sharex=True, sharey=True)
-        ax[0].plot(t[0:1000], x1[0:1000])
-        ax[1].plot(t[0:1000], x2[0:1000])
-        ax[2].plot(t[0:1000], x3[0:1000])
-        plt.show(block=False)
-
-        x_comps = [x1, x2, x3]
-
-        ### perform a nonlinear combination of the three above components and plot 
-        x = (x1 + x2)**2 + x3**2
-        # center around 0 
-        x = (x - np.mean(x)) / np.std(x)
-
-        fig, ax = plt.subplots(4,1)
-        ax[0].plot(t[0:500], x1[0:500], color='b')
-        ax[0].set_ylabel('X1')
-        ax[1].plot(t[0:500], x2[0:500], color='r')
-        ax[1].set_ylabel('X2')
-        ax[2].plot(t[0:500], x3[0:500], color='g')
-        ax[2].set_ylabel('X3')
-        # ax[3].plot(t[0:1000], xs[0][0:1000], color='k')
-        # ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$ 100Hz')
-        ax[3].plot(t[0:500], x[0:500], color='k')
-        ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$')
-        plt.show(block=False)
-
-        ### project to high-D space 
+        
         def create_highd_space(lowd, num_neurons):
 
             # don't care what the high-D space is, so use random
@@ -86,9 +49,7 @@ class LTCDataset(Dataset):
             log_means = (np.random.rand(num_neurons) - 0.5) * 0.01
 
             return highd_proj, log_means
-
-        highd_proj, log_means = create_highd_space(x, num_neurons)
-
+        
         def project_to_highd(lowd, highd_proj, log_means):
             # project the low-D data out to high-D space
             z_true = np.dot(lowd, highd_proj) + log_means
@@ -98,6 +59,47 @@ class LTCDataset(Dataset):
             spikes = np.random.poisson(z_true_rates*dt)
 
             return spikes, z_true_rates
+
+        xs = []
+        for a in amplitudes: 
+            ### generate oscillators with three different sets of parameters 
+            x1 = oscillator(length, dt, period=1, amplitude=a*0.5, ic=1)
+            x2 = oscillator(length, dt, period=1.5, amplitude=a*0.5, ic=0)
+            x3 = oscillator(length, dt, period=0.5, amplitude=a*0.5, ic=0.5)
+
+            ### visualize components of compound system 
+            t = np.linspace(0, length, int(length / dt))
+            fig, ax = plt.subplots(3,1, sharex=True, sharey=True)
+            ax[0].plot(t[0:1000], x1[0:1000])
+            ax[1].plot(t[0:1000], x2[0:1000])
+            ax[2].plot(t[0:1000], x3[0:1000])
+            plt.show(block=False)
+
+            x_comps = [x1, x2, x3]
+
+            ### perform a nonlinear combination of the three above components and plot 
+            x = (x1 + x2)**2 + x3**2
+            # center around 0 
+            x = (x - np.mean(x)) / np.std(x)
+
+            fig, ax = plt.subplots(4,1)
+            ax[0].plot(t[0:500], x1[0:500], color='b')
+            ax[0].set_ylabel('X1')
+            ax[1].plot(t[0:500], x2[0:500], color='r')
+            ax[1].set_ylabel('X2')
+            ax[2].plot(t[0:500], x3[0:500], color='g')
+            ax[2].set_ylabel('X3')
+            # ax[3].plot(t[0:1000], xs[0][0:1000], color='k')
+            # ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$ 100Hz')
+            ax[3].plot(t[0:500], x[0:500], color='k')
+            ax[3].set_ylabel(r'$(X1 + X2)^2 + X3^2$')
+            plt.show(block=False)
+
+            xs.append(x)
+
+        x = np.vstack(xs)
+        ### project to high-D space 
+        highd_proj, log_means = create_highd_space(x, num_neurons)
 
         # test our high-D projection function 
         spikes, true_rates = project_to_highd(x, highd_proj, log_means)
@@ -195,9 +197,6 @@ if __name__ == "__main__":
     x, x_comps, spikes, true_rates = d.generate_spikes()
     d.create_dataset(x, x_comps, spikes, true_rates)
 
-    # # rebin into 10ms bins 10/1/19
-    # d.resample(target_bin=0.01)
-
     d.make_trials(margins = 0.0, start_name='trialStart', end_name='trialEnd')
     
     #select all of the trials
@@ -206,7 +205,7 @@ if __name__ == "__main__":
     lfads_save_path = '/snel/home/brianna/projects/deep_learning_project/'
     lfads_load_path = '/snel/home/brianna/projects/deep_learning_project/'
     
-    chop_params = {'trial_length_s':2, 'trial_olap_s':0, 'bin_size_s': 0.02}      # not chopping data
+    chop_params = {'trial_length_s':1, 'trial_olap_s':0, 'bin_size_s': 0.02}      # not chopping data
     valid_ratio = 0.1
     d.init_lfads(lfads_save_path, lfads_load_path, chop_params, valid_ratio)
 
