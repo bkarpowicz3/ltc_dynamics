@@ -7,7 +7,7 @@ import os
 from os import path
 np.random.seed(20211023)
 
-def pendulum_1(curr_state, t, length=1, mass=1, damping_coeff=0, g=9.81):
+def pendulum_1(curr_state, t, length=3, mass=1, damping_coeff=0, g=9.81):
     """Pendulum with mass, length, and damping if desired
 
     """
@@ -71,7 +71,7 @@ def plot_traj(traj):
 
     return ax
 
-runpath = '/snel/home/lwimala/tmp/cs7643_project/run_001/'
+runpath = '/snel/home/lwimala/tmp/cs7643_project/run_002/'
 OVERWRITE = True
 save_data = True
 n_init_conds = 8
@@ -80,33 +80,33 @@ dt = 0.010 # seconds
 t_max = 40 # seconds
 t_burn = 3 # seconds, time to trim from beginning
 data_dim = 60
-lowd_dim = 3
+lowd_dim = 1
 scale_lowd = 5
 chop_len = 100 # bins
 chop_olap = 20 # bins
 tshift = 0 # bins
 t_buffer = 2*tshift*dt # seconds, buffer for tshift
 downsample_factor = 5
-scale_norm = 0.6
-bias = 10 # spk/s
-baseline_fr = 10 # spk/s
+scale_norm = 4
+bias = 0.01 # spk/s
+baseline_fr = 0 # spk/s
 # compute transformations for mean from dynamical system and set variance to be mean dependent
-w_mean = np.random.rand(lowd_dim, data_dim) - 0.5
-
-w_mean_norm = np.linalg.norm(w_mean)*scale_norm
-w_mean = np.divide(w_mean, w_mean_norm) # normalize projection matrix
+w_mean = np.random.rand(lowd_dim*2, data_dim) - 0.5
+w_mean *= scale_norm
+#w_mean_norm = np.linalg.norm(w_mean)*scale_norm
+#w_mean = np.divide(w_mean, w_mean_norm) # normalize projection matrix
 
 all_lowd_traj = []
 for i in range(n_init_conds):
     #init_state = (np.random.rand(1,lowd_dim)-0.5)*20
-    low = np.pi/4
+    low = np.pi/16
     high = np.pi/2
     init_state_1 = np.random.uniform(low=low, high=high, size=(1,2)).tolist()[0]
     init_state_2 = np.random.uniform(low=low, high=high, size=(1,2)).tolist()[0]
     init_state_3 = np.random.uniform(low=low, high=high, size=(1,2)).tolist()[0]
     
     # set velocities to 0
-    init_state_1[1] = 0
+    #init_state_1[1] = 0
     init_state_2[1] = 0
     init_state_3[1] = 0
     print(init_state_1)
@@ -114,8 +114,8 @@ for i in range(n_init_conds):
     _, lowd_dim2 = generate_trajectory(pendulum_2, init_state_2, t_max, t_burn, dt)
     _, lowd_dim3 = generate_trajectory(pendulum_3, init_state_3, t_max, t_burn, dt)
     
-    lowd_traj = np.concatenate( [lowd_dim1[:,0, np.newaxis], lowd_dim2[:,0, np.newaxis], lowd_dim3[:,0,np.newaxis]], axis=1)
-    
+    #lowd_traj = np.concatenate( [lowd_dim1, lowd_dim2, lowd_dim3], axis=1)
+    lowd_traj = lowd_dim1
     # scale_lowd
     lowd_traj *= scale_lowd
     #import pdb; pdb.set_trace()
@@ -126,11 +126,12 @@ for i in range(n_init_conds):
 
     all_lowd_traj.append(lowd_traj)
 
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# for lowd_traj in all_lowd_traj:
-#     ax.plot(lowd_traj[:,0], lowd_traj[:,1], lowd_traj[:,2])
-
+fig = plt.figure()
+ax = fig.add_subplot(111)
+for lowd_traj in all_lowd_traj:
+    ax.plot(lowd_traj[:,0], lowd_traj[:,1])
+plt.ylim([-20, 20])
+plt.xlim([-20, 20])
 # compute mean and std from concat traj to standardize system 
 concat_traj = np.vstack(all_lowd_traj)
 mean_traj = np.mean(concat_traj,axis=0)
@@ -151,18 +152,19 @@ for i in range(n_init_conds):
                                             stddev_traj=stddev_traj)
 
     log_mean = np.matmul(cent_lowd_traj, w_mean) 
-    fr_mod = np.random.rand(1,data_dim)*bias
-    mean = np.exp(log_mean + np.log(fr_mod)) + baseline_fr
+    fr_mod = (np.random.rand(1,data_dim)-0.5)*bias
+    mean = np.exp(log_mean) + baseline_fr + fr_mod
     
     # rates 
     rates = mean
     all_rates.append(rates)
     all_lowd.append(cent_lowd_traj)
 
-    if i==0:
-        ax = plot_traj(cent_lowd_traj)
-    else:
-        ax.plot(cent_lowd_traj[:,0], cent_lowd_traj[:,1], cent_lowd_traj[:,2])
+    # if i==0:
+    #     ax = plot_traj(cent_lowd_traj)
+    # else:
+        
+    #     ax.plot(cent_lowd_traj[:,0], cent_lowd_traj[:,1], cent_lowd_traj[:,2])
 
 concat_rates = np.vstack(all_rates)
 concat_lowd = np.vstack(all_lowd)
@@ -183,7 +185,7 @@ de2 = np.reshape(np.transpose(de, (0,2,1)),[n_samples, dim, n_init_conds, t.size
 
 # reshape rates/lowd data to dim x cond x time
 truth = np.reshape(concat_rates.T,[dim, n_init_conds, t.size])
-truth_lowd = np.reshape(concat_lowd.T, [lowd_dim, n_init_conds, t.size])
+truth_lowd = np.reshape(concat_lowd.T, [lowd_dim*2, n_init_conds, t.size])
 
 if tshift > 0:
     tshift_chop_padding = np.ones((de2.shape[0],de2.shape[1],de2.shape[2], tshift))
@@ -205,7 +207,7 @@ for i in range(n_chops):
     truth_chop = truth[:,:,start_idx:end_idx]
     truth_lowd_chop = truth_lowd[:,:,start_idx:end_idx]
     truth_chops = np.reshape(np.tile(np.transpose(truth_chop, (0,2,1))[:,:,:,np.newaxis], (1,1,1,n_trials)), [dim, chop_len, n_init_conds*n_samples]).T
-    truth_lowd_chops = np.reshape(np.tile(np.transpose(truth_lowd_chop, (0,2,1))[:,:,:,np.newaxis], (1,1,1,n_trials)), [lowd_dim, chop_len, n_init_conds*n_samples]).T
+    truth_lowd_chops = np.reshape(np.tile(np.transpose(truth_lowd_chop, (0,2,1))[:,:,:,np.newaxis], (1,1,1,n_trials)), [lowd_dim*2, chop_len, n_init_conds*n_samples]).T
 
     chop_inds = reshape_inds[:,np.arange(start_idx-tshift, end_idx-tshift)]
     chop_inds = np.reshape(np.transpose(np.tile(chop_inds[np.newaxis,:,:], (n_trials,1,1)), (2,1,0)), [ chop_len, n_init_conds*n_samples]).T
