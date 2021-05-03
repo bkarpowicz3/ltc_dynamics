@@ -14,9 +14,9 @@ from lfads_tf2.defaults import get_cfg_defaults
 
 if __name__=="__main__":
     cfg = get_cfg_defaults()
-    cfg.TRAIN.DATA.DIR = '/snel/home/lwimala/tmp/cs7643_project/run_002/lfads_input/'
+    cfg.TRAIN.DATA.DIR = '/snel/home/lwimala/tmp/cs7643_project/project_runs/lfads_input_nonlin_osc/'
     cfg.TRAIN.DATA.PREFIX = 'lfads'
-    cfg.TRAIN.MODEL_DIR = '/snel/home/lwimala/tmp/cs7643_project/run_002/lfads_output/'
+    cfg.TRAIN.MODEL_DIR = '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_nonlin_osc/'
     #cfg.TRAIN.MODEL_DIR = '/snel/home/lwimala/tmp/deemg_tf2_test_runs/pbt_run_004/best_model'
     cfg.TRAIN.OVERWRITE = True
     cfg.MODEL.DATA_DIM = cfg.MODEL.ENC_INPUT_DIM = 60
@@ -29,18 +29,18 @@ if __name__=="__main__":
     cfg.MODEL.CO_DIM = 1
     cfg.MODEL.FAC_DIM = 12
     cfg.TRAIN.KL.IC_WEIGHT = 0.0 # 1e-5
-    cfg.TRAIN.KL.CO_WEIGHT = 0.0  #1e-3
+    cfg.TRAIN.KL.CO_WEIGHT = 1e-6  #1e-3
     cfg.TRAIN.KL.INCREASE_EPOCH = 0# 50
     cfg.TRAIN.L2.INCREASE_EPOCH = 0 # 50
     cfg.TRAIN.L2.GEN_SCALE = 0.0 #1e-4
-    cfg.TRAIN.L2.CON_SCALE = 0.0 # 1e1
-    cfg.TRAIN.PATIENCE = 5 # number of epochs to wait before early stopping
+    cfg.TRAIN.L2.CON_SCALE = 1e-6 # 1e1
+    cfg.TRAIN.PATIENCE = 50 # number of epochs to wait before early stopping
     cfg.TRAIN.BATCH_SIZE = 400 # number of samples per batch
     cfg.TRAIN.LR.INIT = 0.01 # the initial learning rate
     cfg.TRAIN.EAGER_MODE = False
-    cfg.TRAIN.MAX_EPOCHS = 150 # maximum number of training epochs
-    cfg.MODEL.CD_RATE = 0.0
-    cfg.MODEL.DROPOUT_RATE = 0.0
+    cfg.TRAIN.MAX_EPOCHS = 300 # maximum number of training epochs
+    cfg.MODEL.CD_RATE = 0.05
+    cfg.MODEL.DROPOUT_RATE = 0.30
     cfg.freeze()
 
     # if training from scratch
@@ -48,15 +48,15 @@ if __name__=="__main__":
     # if sampling from trained model
     #mode = 'sampling'
     # if loading posterior averages
-    mode = 'loading'
+    # mode = 'loading'
 
     if mode == 'training':
-        model = LFADS(cfg_node=cfg) # initialize from cfg node
+        model = LTC_LFADS(cfg_node=cfg) # initialize from cfg node
         model.train() # train new model
         model.sample_and_average()    
     elif mode == 'sampling':
         model_dir = cfg.TRAIN.MODEL_DIR
-        model = LFADS(model_dir=model_dir) # load trained model
+        model = LTC_LFADS(model_dir=model_dir) # load trained model
         model.sample_and_average()    
     elif mode == 'loading':
         model_dir = cfg.TRAIN.MODEL_DIR#
