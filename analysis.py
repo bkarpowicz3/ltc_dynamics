@@ -1,6 +1,8 @@
 #%% 
 from lfads_tf2.utils import restrict_gpu_usage
 restrict_gpu_usage(gpu_ix=0)
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import r2_score
@@ -23,7 +25,10 @@ data = {}
 
 for ex in experiments: 
     cfg.TRAIN.DATA.DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_input_' + ex + '/'
-    cfg.TRAIN.MODEL_DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_output_' + ex + '/'
+    if "coupling" in ex:
+        cfg.TRAIN.MODEL_DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_output_' + ex + '_updatedhps/'
+    else:
+        cfg.TRAIN.MODEL_DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_output_' + ex + '/'
 
     spikes  = load_data(cfg.TRAIN.DATA.DIR, \
                     prefix=cfg.TRAIN.DATA.PREFIX, signal='data', merge_tv=True)[0]
@@ -50,7 +55,7 @@ for ex in experiments:
 
     # Training Curves 
 
-    lfads_train_data = os.path.join(cfg.TRAIN.MODEL_DIR, 'train_data.csv')
+    lfads_train_data = path.join(cfg.TRAIN.MODEL_DIR, 'train_data.csv')
     lfads_df = pd.read_csv(lfads_train_data)
 
     epochs = lfads_df.epoch.values 
@@ -144,18 +149,19 @@ lfads_means = []
 ltc_means = []
 
 fig, ax = plt.subplots()
-labels = experiments
+labels = experiments[:-1]
 x = np.arange(len(labels))  # the label locations
 width = 0.35  # the width of the bars
 
 for ex in experiments: 
-    true_rates_flat = data[ex]['rates_flat']
-    lfads_rates_flat = data[ex]['lfads_rates_flat']
+    if 'concat' not in ex:
+        true_rates_flat = data[ex]['rates_flat']
+        lfads_rates_flat = data[ex]['lfads_rates_flat']
 
-    lfads_r2 = R2(true_rates_flat, lfads_rates_flat)
-    ltc_r2 = [1, 0.9, 0.9]
-    lfads_means.append(np.mean(lfads_r2))
-    ltc_means.append(np.mean(ltc_r2))
+        lfads_r2 = R2(true_rates_flat, lfads_rates_flat)
+        ltc_r2 = [1, 0.9]
+        lfads_means.append(np.mean(lfads_r2))
+        ltc_means.append(np.mean(ltc_r2))
     # vafs = [np.mean(lfads_r2), np.mean(ltc_r2)]
     # yerr = [np.std(lfads_r2), np.std(ltc_r2)]
 
