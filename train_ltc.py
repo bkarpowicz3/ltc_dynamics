@@ -7,16 +7,16 @@ from os import path
 import numpy as np
 import h5py
 import glob
-from lfads_tf2.subclasses.ltc.models import LTC_LFADS
+# from lfads_tf2.subclasses.ltc.models import LTC_LFADS
 from lfads_tf2.models import LFADS
 from lfads_tf2.utils import load_data, merge_chops, load_posterior_averages
 from lfads_tf2.defaults import get_cfg_defaults
 
 if __name__=="__main__":
     cfg = get_cfg_defaults()
-    cfg.TRAIN.DATA.DIR = '/snel/home/lwimala/tmp/cs7643_project/run_002/lfads_input/'
+    cfg.TRAIN.DATA.DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_input_nonlinear_coupling/'
     cfg.TRAIN.DATA.PREFIX = 'lfads'
-    cfg.TRAIN.MODEL_DIR = '/snel/home/lwimala/tmp/cs7643_project/run_002/lfads_output/'
+    cfg.TRAIN.MODEL_DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_output_nonlinear_coupling_updatedhps/'
     #cfg.TRAIN.MODEL_DIR = '/snel/home/lwimala/tmp/deemg_tf2_test_runs/pbt_run_004/best_model'
     cfg.TRAIN.OVERWRITE = True
     cfg.MODEL.DATA_DIM = cfg.MODEL.ENC_INPUT_DIM = 60
@@ -29,18 +29,18 @@ if __name__=="__main__":
     cfg.MODEL.CO_DIM = 1
     cfg.MODEL.FAC_DIM = 12
     cfg.TRAIN.KL.IC_WEIGHT = 0.0 # 1e-5
-    cfg.TRAIN.KL.CO_WEIGHT = 0.0  #1e-3
+    cfg.TRAIN.KL.CO_WEIGHT = 1e-6  #1e-3
     cfg.TRAIN.KL.INCREASE_EPOCH = 0# 50
     cfg.TRAIN.L2.INCREASE_EPOCH = 0 # 50
     cfg.TRAIN.L2.GEN_SCALE = 0.0 #1e-4
-    cfg.TRAIN.L2.CON_SCALE = 0.0 # 1e1
-    cfg.TRAIN.PATIENCE = 5 # number of epochs to wait before early stopping
+    cfg.TRAIN.L2.CON_SCALE = 1e-6 # 1e1
+    cfg.TRAIN.PATIENCE = 50 # number of epochs to wait before early stopping
     cfg.TRAIN.BATCH_SIZE = 400 # number of samples per batch
     cfg.TRAIN.LR.INIT = 0.01 # the initial learning rate
     cfg.TRAIN.EAGER_MODE = False
-    cfg.TRAIN.MAX_EPOCHS = 150 # maximum number of training epochs
-    cfg.MODEL.CD_RATE = 0.0
-    cfg.MODEL.DROPOUT_RATE = 0.0
+    cfg.TRAIN.MAX_EPOCHS = 300 # maximum number of training epochs
+    cfg.MODEL.CD_RATE = 0.05
+    cfg.MODEL.DROPOUT_RATE = 0.30
     cfg.freeze()
 
     # if training from scratch
@@ -48,7 +48,7 @@ if __name__=="__main__":
     # if sampling from trained model
     #mode = 'sampling'
     # if loading posterior averages
-    mode = 'loading'
+    # mode = 'loading'
 
     if mode == 'training':
         model = LFADS(cfg_node=cfg) # initialize from cfg node
@@ -122,7 +122,7 @@ lowd_full = merge_chops(lowd, chop_len, chop_olap)
 nchops = int(np.floor(t - chop_len) /(chop_len-chop_olap))
 end_idx = t - (chop_len + (chop_len-chop_olap)*(nchops-1))
 
-#deemg_6_full = deemg_6_full[:,:,chop_olap:-(end_idx+chop_olap)]
+# deemg_6_full = deemg_6_full[:,:,chop_olap:-(end_idx+chop_olap)]
 deemg_full = deemg_full[:,:,chop_olap:-(end_idx+chop_olap)]
 emg_full = emg_full[:,:,chop_olap:-(end_idx+chop_olap)]
 true_full = true_full[:,:,chop_olap:-(end_idx+chop_olap)]
@@ -132,6 +132,7 @@ lowd_full = lowd_full[:,:,chop_olap:-(end_idx+chop_olap)]
 
 lowd_flat = lowd_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], lowd_full.shape[3])
 deemg_flat = deemg_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
+emg_flat = emg_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
 #deemg_6_flat = deemg_6_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
 true_flat = true_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
 
@@ -157,8 +158,8 @@ lowd_hat = lr.predict(deemg_flat)
 r2 = compute_r2(lowd_flat,lowd_hat)
 import pdb; pdb.set_trace();
 print(r2)
-#r2_6 = compute_r2(lowd_flat,lowd_6_hat)
-print(r2_6)
+# r2_6 = compute_r2(lowd_flat,lowd_hat)
+# print(r2_6)
 fig = plt.figure();
 ax = fig.add_subplot(131, projection='3d')
 ax2 = fig.add_subplot(132, projection='3d')
@@ -198,7 +199,7 @@ for i, ichan in enumerate(chans):
     for j, icond in enumerate(conds):
         ax = fig.add_subplot(len(chans),len(conds),count)
         ax.plot(true_full[0,icond,:,ichan], color='k')
-        ax.plot(deemg_full[:,icond,:,ichan].T,color='r', alpha=opacity)
+        ax.plot(deemg_full[:,icond,:,ichan].T/0.01,color='r', alpha=opacity)
         count += 1
         if i==0:
             ax.set_title('Condition ' + str(j+1))
@@ -211,7 +212,7 @@ for i, ichan in enumerate(chans):
     for j, icond in enumerate(conds):
         ax = fig.add_subplot(len(chans),len(conds),count)
         ax.plot(true_full[0,icond,:,ichan], color='k')
-        ax.plot(deemg_6_full[:,icond,:,ichan].T,color='b', alpha=opacity)
+        ax.plot(deemg_full[:,icond,:,ichan].T/0.01,color='b', alpha=opacity)
         count += 1
         if i==0:
             ax.set_title('Condition ' + str(j+1))
@@ -231,11 +232,11 @@ count = 1;
 opacity = 0.6;
 
 ax.plot(true_full[0,icond,:,ichan], color='k')
-ax.plot(np.mean(deemg_full[:,icond,:,ichan],axis=0),color='r', alpha=opacity)
+ax.plot(np.mean(deemg_full[:,icond,:,ichan]/0.01,axis=0),color='r', alpha=opacity)
 #ax.plot(np.mean(deemg_6_full[:,icond,:,ichan],axis=0),color='b', alpha=opacity)
 
 ax2.plot(true_full[0,icond,:,ichan], color='k')
-ax2.plot(np.mean(deemg_full[2:,icond,:,ichan],axis=0),color='r', alpha=opacity)
+ax2.plot(np.mean(deemg_full[2:,icond,:,ichan]/0.01,axis=0),color='r', alpha=opacity)
 #ax2.plot(np.mean(deemg_6_full[6:,icond,:,ichan],axis=0),color='b', alpha=opacity)
 ax.set_title            
 print('check plot')
