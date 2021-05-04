@@ -51,12 +51,12 @@ if __name__=="__main__":
     # mode = 'loading'
 
     if mode == 'training':
-        model = LFADS(cfg_node=cfg) # initialize from cfg node
+        model = LTC_LFADS(cfg_node=cfg) # initialize from cfg node
         model.train() # train new model
         model.sample_and_average()    
     elif mode == 'sampling':
         model_dir = cfg.TRAIN.MODEL_DIR
-        model = LFADS(model_dir=model_dir) # load trained model
+        model = LTC_LFADS(model_dir=model_dir) # load trained model
         model.sample_and_average()    
     elif mode == 'loading':
         model_dir = cfg.TRAIN.MODEL_DIR#
