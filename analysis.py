@@ -20,15 +20,30 @@ from lfads_tf2.defaults import get_cfg_defaults
 cfg = get_cfg_defaults()
 cfg.TRAIN.DATA.PREFIX = 'lfads'
 
-experiments = ['nonlinear_coupling', 'linear_coupling', 'concat3']
+experiments = {
+    'lfads_nonlinear_coupling': 
+        ['/snel/home/brianna/projects/deep_learning_project/lfads_input_nonlinear_coupling/',
+        '/snel/home/brianna/projects/deep_learning_project/lfads_output_nonlinear_coupling_updatedhps/'],
+    'lfads_linear_coupling':
+        ['/snel/home/brianna/projects/deep_learning_project/lfads_input_linear_coupling/',
+        '/snel/home/brianna/projects/deep_learning_project/lfads_output_linear_coupling_updatedhps/'],
+    'lfads_concat3': 
+        ['/snel/home/brianna/projects/deep_learning_project/lfads_input_concat3/',
+        '/snel/home/brianna/projects/deep_learning_project/lfads_output_concat3/'],
+    'ltc_nonlinear_coupling': 
+        ['/snel/home/brianna/projects/deep_learning_project/lfads_input_nonlinear_coupling/',
+        '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_nonlin_osc'],
+    'ltc_linear_coupling': 
+        ['/snel/home/brianna/projects/deep_learning_project/lfads_input_linear_coupling/',
+        '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_lin_osc']
+    }
+
 data = {}
 
 for ex in experiments: 
-    cfg.TRAIN.DATA.DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_input_' + ex + '/'
-    if "coupling" in ex:
-        cfg.TRAIN.MODEL_DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_output_' + ex + '_updatedhps/'
-    else:
-        cfg.TRAIN.MODEL_DIR = '/snel/home/brianna/projects/deep_learning_project/lfads_output_' + ex + '/'
+    print(ex)
+    cfg.TRAIN.DATA.DIR = experiments[ex][0]
+    cfg.TRAIN.MODEL_DIR = experiments[ex][1]
 
     spikes  = load_data(cfg.TRAIN.DATA.DIR, \
                     prefix=cfg.TRAIN.DATA.PREFIX, signal='data', merge_tv=True)[0]
@@ -67,6 +82,8 @@ for ex in experiments:
     plt.ylabel('Loss')
     plt.xlabel('Epochs')
     plt.title('LFADS Training - ' + ex)
+    if 'ltc_linear' in ex: 
+        plt.ylim([0, 1])
     plt.legend()
     plt.savefig('learning_curve_'+ex+'.png')
 #%% 
@@ -96,7 +113,7 @@ def merge_chops( chop_data, chop_len, chop_olap, dim=None ):
     return full_data
 
 for ex in experiments:
-
+    # e = experiments[ex]
     d = data[ex]
     lfads_rates = d['lfads_rates']
     lfads_factors = d['lfads_factors']
@@ -149,7 +166,7 @@ lfads_means = []
 ltc_means = []
 
 fig, ax = plt.subplots()
-labels = experiments[:-1]
+labels = ['Nonlinear', 'Linear']
 x = np.arange(len(labels))  # the label locations
 width = 0.35  # the width of the bars
 
@@ -159,13 +176,15 @@ for ex in experiments:
         lfads_rates_flat = data[ex]['lfads_rates_flat']
 
         lfads_r2 = R2(true_rates_flat, lfads_rates_flat)
-        ltc_r2 = [1, 0.9]
-        lfads_means.append(np.mean(lfads_r2))
-        ltc_means.append(np.mean(ltc_r2))
+
+        if 'lfads' in ex:
+            lfads_means.append(np.mean(lfads_r2))
+        else:
+            ltc_means.append(np.mean(lfads_r2))
     # vafs = [np.mean(lfads_r2), np.mean(ltc_r2)]
     # yerr = [np.std(lfads_r2), np.std(ltc_r2)]
 
-rects1 = ax.bar(x - width/2, lfads_means, width, label='LFADS')
+rects1 = ax.bar(x - width/2, lfads_means, width, label='GRU-LFADS')
 rects2 = ax.bar(x + width/2, ltc_means, width, label='LTC-LFADS')
 ax.set_ylabel('Mean VAF')
 ax.set_title('Firing Rate Reconstruction Accuracy')
@@ -176,28 +195,41 @@ plt.savefig('firing_rates_vaf.png')
 
 #%% Plot time series firing rates 
 # neurons = sorted(np.random.randint(0, lfads_rates_flat.shape[-1], 5))
+skip = False
 neurons = [2, 6, 21, 29, 40]
-fig, ax = plt.subplots(5,3, figsize=(18, 10), sharex=True)
+fig, ax = plt.subplots(5,4, figsize=(18, 10), sharex=True)
 for jj, ex in enumerate(experiments):
-    true_rates_flat = data[ex]['rates_flat']
-    lfads_rates_flat = data[ex]['lfads_rates_flat']
+    if 'concat' not in ex:
+        if 'lfads' in ex: 
+            label = 'GRU-LFADS'
+        else:
+            label = 'LTC-LFADS'
+        true_rates_flat = data[ex]['rates_flat']
+        lfads_rates_flat = data[ex]['lfads_rates_flat']
 
-    for ii, n in enumerate(neurons):
-        ax[ii][jj].plot(true_rates_flat[0:500, n], color='k', label='True')
-        ax[ii][jj].plot(lfads_rates_flat[0:500, n]/0.01, color='r', label='LFADS')
-        ax[ii][jj].set_ylabel('Neuron ' + str(n))
-        ax[0][jj].set_title(ex)
+        idx = jj - 1 if skip else jj
+        for ii, n in enumerate(neurons):
+            ax[ii][idx].plot(true_rates_flat[0:500, n], color='k', label='True')
+            ax[ii][idx].plot(lfads_rates_flat[0:500, n]/0.01, color='r', label=label)
+            ax[ii][idx].set_ylabel('Neuron ' + str(n))
+            ax[0][idx].set_title(ex)
+    else: 
+        skip = True
 
 ax[0][0].legend()
+ax[0][2].legend()
 ax[-1][-1].set_xlabel('Time (s)')
-fig.suptitle('Estimation of LFADS Rates')
+fig.suptitle('Estimation of Firing Rates')
 plt.savefig('firing_rates_time.png')
 
 # %% Estimate of actual dynamics 
 from sklearn.linear_model import LinearRegression
 
-for ex in experiments: 
+lfads_factors_vaf = []
+ltc_factors_vaf = []
 
+for ex in experiments: 
+    label = 'GRU-LFADS' if 'lfads' in ex else 'LTC-LFADS'
     lfads_factors_flat = data[ex]['lfads_factors_flat']
     lowd_flat = data[ex]['lowd_flat']
 
@@ -209,6 +241,11 @@ for ex in experiments:
     # get predictions
     lowd_hat = lr.predict(x)
     r2 = R2(y, lowd_hat)
+    if 'lfads' in ex: 
+        if 'concat' not in ex:
+            lfads_factors_vaf.append(np.mean(r2))
+    else: 
+        ltc_factors_vaf.append(np.mean(r2))
     print(r2)
 
     n_dynamics = lowd_hat.shape[-1]
@@ -216,21 +253,36 @@ for ex in experiments:
     fig, ax = plt.subplots(n_dynamics,1, figsize=(6, height))
     for ii in range(n_dynamics):
         ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
-        ax[ii].plot(lowd_hat[0:500, ii], color='r', label='LFADS')
+        ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
         ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
     ax[0].legend()
     fig.suptitle('Estimation of Composite Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
     plt.savefig('dynamics_'+ex+'.png')
 
+#%% 
+
+fig, ax = plt.subplots()
+labels = ['Nonlinear', 'Linear']
+x = np.arange(len(labels))  # the label locations
+width = 0.35  # the width of the bars
+
+rects1 = ax.bar(x - width/2, lfads_factors_vaf, width, label='GRU-LFADS')
+rects2 = ax.bar(x + width/2, ltc_factors_vaf, width, label='LTC-LFADS')
+ax.set_ylabel('Mean VAF')
+ax.set_title('Dynamics Reconstruction Accuracy')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+plt.savefig('dynamics_vaf.png')
 
 # %% Prediction of the components of dynamics
 
-lowd_flat = data['concat3']['lowd_flat']
+lowd_flat = data['lfads_concat3']['lowd_flat']
 
 for ex in experiments: 
-
+    label = 'GRU-LFADS' if 'lfads' in ex else 'LTC-LFADS'
     lfads_factors_flat = data[ex]['lfads_factors_flat']
-    
+
     x = lfads_factors_flat
     y = lowd_flat
     # fits intercept
@@ -245,10 +297,10 @@ for ex in experiments:
     fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
     for ii in range(n_dynamics):
         ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
-        ax[ii].plot(lowd_hat[0:500, ii], color='r', label='LFADS')
+        ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
         ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
     ax[0].legend()
     fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
-    plt.savefig('dynamics_components'+ex+'.png')
+    plt.savefig('dynamics_components_'+ex+'.png')
 
 # %%
