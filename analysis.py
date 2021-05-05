@@ -3,6 +3,12 @@ from lfads_tf2.utils import restrict_gpu_usage
 restrict_gpu_usage(gpu_ix=0)
 import matplotlib
 matplotlib.use('Agg')
+# import matplotlib 
+font = {'family' : 'normal',
+        'weight' : 'bold',
+        'size'   : 16}
+matplotlib.rc('font', **font)
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import r2_score
@@ -85,9 +91,9 @@ for ex in experiments:
     plt.plot(epochs, valid_loss, label='Valid')
     plt.ylabel('Loss')
     plt.xlabel('Epochs')
-    plt.title('LFADS Training - ' + ex)
-    if 'ltc_linear' in ex: 
-        plt.ylim([0, 1])
+    # plt.title('LFADS Training - ' + ex)
+    # if 'ltc_linear' in ex: 
+    plt.ylim([0, 3])
     plt.legend()
     plt.savefig('learning_curve_'+ex+'.png')
 #%% 
@@ -229,13 +235,16 @@ for jj, ex in enumerate(experiments):
         for ii, n in enumerate(neurons):
             ax[ii][idx].plot(true_rates_flat[0:500, n], color='k', label='True')
             ax[ii][idx].plot(lfads_rates_flat[0:500, n]/0.01, color='r', label=label)
-            ax[ii][idx].set_ylabel('Neuron ' + str(n))
+            ax[ii][0].set_ylabel('Neuron ' + str(n))
             ax[0][idx].set_title(ex)
     else: 
         skip = True
 
-ax[0][0].legend()
-ax[0][2].legend()
+# ax[0][0].legend()
+# ax[0][2].legend()
+ax[-1][0].set_xlabel('Time (s)')
+ax[-1][1].set_xlabel('Time (s)')
+ax[-1][2].set_xlabel('Time (s)')
 ax[-1][-1].set_xlabel('Time (s)')
 fig.suptitle('Estimation of Firing Rates')
 plt.savefig('firing_rates_time.png')
@@ -273,8 +282,9 @@ for ex in experiments:
         ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
         ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
         ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
-    ax[0].legend()
-    fig.suptitle('Estimation of Composite Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
+    # ax[0].legend()
+    print(ex + ' ' + str(np.mean(r2)))
+    # fig.suptitle('Estimation of Composite Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
     plt.savefig('dynamics_'+ex+'.png')
 
 #%% 
@@ -303,6 +313,11 @@ for ex in experiments:
 
     x = lfads_factors_flat
     y = lowd_flat
+
+    # temp = y 
+    # y = x 
+    # x = temp
+
     # fits intercept
     lr = Ridge().fit(x,y) # object
 
@@ -314,10 +329,12 @@ for ex in experiments:
     n_dynamics = lowd_hat.shape[-1]
     fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
     for ii in range(n_dynamics):
-        ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
+        ax[ii].plot(y[0:500, ii], color='k', label='True')
         ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
-        ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
-    ax[0].legend()
+        if ii != n_dynamics - 1: 
+            ax[ii].set_xticks([])
+        # ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
+    # ax[0].legend()
     fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
     plt.savefig('dynamics_components_'+ex+'.png')
 
@@ -331,8 +348,12 @@ for ex in experiments:
 
     x = lfads_factors_flat
     y = lowd_flat
+
+    # temp = y 
+    # y = x 
+    # x = temp
     # fits intercept
-    lr = LinearRegression().fit(x,y) # object
+    lr = LinearRegression().fit(x, y) # object
 
     # get predictions
     lowd_hat = lr.predict(x)
@@ -342,11 +363,11 @@ for ex in experiments:
     n_dynamics = lowd_hat.shape[-1]
     fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
     for ii in range(n_dynamics):
-        ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
+        ax[ii].plot(y[0:500, ii], color='k', label='True')
         ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
         ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
-    ax[0].legend()
-    fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
+    # ax[0].legend()
+    # fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
     plt.savefig('dynamics_components_gen_states_'+ex+'.png')
 
 
@@ -359,6 +380,11 @@ for ex in experiments:
 
     x = lfads_factors_flat
     y = lowd_flat
+
+    # temp = y 
+    # y = x 
+    # x = temp
+
     # fits intercept
     lr = LinearRegression().fit(x,y) # object
 
@@ -368,12 +394,121 @@ for ex in experiments:
     print(r2)
 
     n_dynamics = lowd_hat.shape[-1]
-    fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
-    for ii in range(n_dynamics):
-        ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
-        ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
-        ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
-    ax[0].legend()
-    fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
-    plt.savefig('dynamics_components_con_'+ex+'.png')
+    if n_dynamics > 1:
+        fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
+        for ii in range(n_dynamics):
+            ax[ii].plot(y[0:500, ii], color='k', label='True')
+            ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
+            ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
+        ax[0].legend()
+        fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
+        plt.savefig('dynamics_components_con_'+ex+'.png')
+
+# %% Compare controller outputs 
+
+# for ex in experiments: 
+#     label = 'GRU-LFADS' if 'lfads' in ex else 'LTC-LFADS'
+#     co_out = data[ex]['con_output_flat']
+
+skip = False
+fig, ax = plt.subplots(12,4, figsize=(18, 10), sharex=True, sharey=True)
+for jj, ex in enumerate(experiments):
+    if 'concat' not in ex:
+        # if 'lfads' in ex: 
+        #     label = 'GRU-LFADS'
+        # else:
+        #     label = 'LTC-LFADS'
+        co_out = data[ex]['con_output_flat']
+        co_dim = co_out.shape[-1]
+        # lfads_rates_flat = data[ex]['lfads_rates_flat']
+
+        idx = jj - 1 if skip else jj
+        for ii in range(co_dim):
+            ax[ii][idx].plot(co_out[0:500, ii], color='k')
+
+            # if ii != co_dim - 1:
+            ax[ii][idx].spines['right'].set_visible(False)
+            ax[ii][idx].spines['top'].set_visible(False)
+            # ax[ii][idx].set_ylabel('Co Dim ' + str(ii + 1))
+            # ax[0][idx].set_title(ex)
+    else: 
+        skip = True
+
+# ax[0][0].legend()
+# ax[0][2].legend()
+# ax[-1][-1].set_xlabel('Time (s)')
+fig.suptitle('Controller Outputs')
+plt.savefig('co_dim.png')
+# %% Plot generator state heat maps 
+
+skip = False
+fig, ax = plt.subplots(2,2, figsize=(18, 10), sharex=True)
+ax = ax.flatten()
+for jj, ex in enumerate(experiments):
+    if 'concat' not in ex:
+        # if 'lfads' in ex: 
+        #     label = 'GRU-LFADS'
+        # else:
+        #     label = 'LTC-LFADS'
+        gen_states = data[ex]['gen_states_full']
+        # lfads_rates_flat = data[ex]['lfads_rates_flat']
+
+        idx = jj - 1 if skip else jj
+        gs = gen_states[0,0,:,:].T
+        gs = (gs - np.mean(gs, axis=0)) / np.std(gs, axis=0)
+        gsmax = np.max(gs)
+        gsmin = np.min(gs)
+        gs = (gs - gsmin)/ (gsmax-gsmin)
+        im = ax[idx].imshow(gs, aspect=10)
+        # for ii in range(4):
+        #     ax[idx].
+            # ax[idx].plot(co_out[0:500, ii], color='k')
+        ax[idx].set_ylabel('Generator Dimension')
+        ax[idx].set_title(ex)
+    else: 
+        skip = True
+
+cbar = fig.colorbar(im, ax=ax.ravel().tolist(), shrink=0.9)
+# ax[0][0].legend()
+# ax[0][2].legend()
+ax[-1].set_xlabel('Time (s)')
+fig.suptitle('Normalized Generator States')
+plt.savefig('gen_states.png')
+
+# %% Predict gen states from gen states
+
+x = data['lfads_linear_coupling']['gen_states_flat']
+y = data['ltc_linear_coupling']['gen_states_flat']
+
+# fits intercept
+lr = LinearRegression().fit(x,y) # object
+
+# get predictions
+lowd_hat = lr.predict(x)
+r2 = R2(y, lowd_hat)
+print(r2)
+
+# %% PCA on controller outputs 
+from sklearn.decomposition import FastICA
+
+fig, ax = plt.subplots(2,2)
+ax = ax.flatten()
+ii = 0
+for ex in experiments: 
+    if 'concat' not in ex:
+        co_out = data[ex]['con_output_flat']
+        co_out = co_out - np.mean(co_out, axis=0)
+
+        pca = FastICA(n_components=2)
+        co_reduced = pca.fit_transform(co_out)
+
+        ax[ii].plot(co_reduced[0:1000,0], co_reduced[0:1000,1], '.')
+        ax[ii].set_title(ex)
+
+        ii += 1
+        # plt.show(block=False)
+        # plt.show()
+plt.savefig('pca.png')
+
+
 # %%
