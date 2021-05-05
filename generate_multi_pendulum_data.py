@@ -71,7 +71,7 @@ def plot_traj(traj):
 
     return ax
 
-runpath = '/snel/home/lwimala/tmp/cs7643_project/run_002/'
+runpath = '/snel/home/brianna/projects/deep_learning_project'
 OVERWRITE = True
 save_data = True
 n_init_conds = 8
@@ -114,8 +114,10 @@ for i in range(n_init_conds):
     _, lowd_dim2 = generate_trajectory(pendulum_2, init_state_2, t_max, t_burn, dt)
     _, lowd_dim3 = generate_trajectory(pendulum_3, init_state_3, t_max, t_burn, dt)
     
-    #lowd_traj = np.concatenate( [lowd_dim1, lowd_dim2, lowd_dim3], axis=1)
-    lowd_traj = lowd_dim1
+    # lowd_traj = np.concatenate( [lowd_dim1, lowd_dim2, lowd_dim3], axis=1)
+    # lowd_traj = lowd_dim1
+    lowd_traj = lowd_dim1 + lowd_dim2 + lowd_dim3
+    # lowd_traj = (lowd_dim1 + lowd_dim2 + lowd_dim3)**2
     # scale_lowd
     lowd_traj *= scale_lowd
     #import pdb; pdb.set_trace()
@@ -150,7 +152,7 @@ for i in range(n_init_conds):
     #cent_lowd_traj = norm_lowd_traj - np.mean(norm_lowd_traj, axis=0)
     cent_lowd_traj = standardize_trajectory(all_lowd_traj[i], mean_traj=mean_traj, \
                                             stddev_traj=stddev_traj)
-
+    # import pdb; pdb.set_trace()
     log_mean = np.matmul(cent_lowd_traj, w_mean) 
     fr_mod = (np.random.rand(1,data_dim)-0.5)*bias
     mean = np.exp(log_mean) + baseline_fr + fr_mod
@@ -167,13 +169,83 @@ for i in range(n_init_conds):
     #     ax.plot(cent_lowd_traj[:,0], cent_lowd_traj[:,1], cent_lowd_traj[:,2])
 
 concat_rates = np.vstack(all_rates)
+# replace negative numbers with zeros 
+concat_rates[concat_rates < 0] = 0
 concat_lowd = np.vstack(all_lowd)
 # create a list that repeats sampling of the concatenated rates
-concat_data = [ np.random.poisson(concat_rates*dt) for i in range(n_trials)]   
+# import pdb; pdb.set_trace()
+concat_data = [ np.random.poisson(concat_rates*dt) for i in range(n_trials)] 
+de = np.stack(concat_data)
 
+t = np.linspace(0, 10, 500)
+fig, ax = plt.subplots(9, 1, figsize=(5, 11))  
+ax[0].plot(t, lowd_dim1[0:500,0], 'turquoise', t, lowd_dim1[0:500,1], 'purple')
+ax[0].set_ylabel('Pendulum 1')
+ax[0].set_ylim([-10, 10])
+ax[0].set_xticks([])
+ax[0].spines['right'].set_visible(False)
+ax[0].spines['top'].set_visible(False)
+ax[0].legend(['Position', 'Velocity'])
+ax[1].plot(t, lowd_dim2[0:500,0], 'turquoise', t, lowd_dim2[0:500,1], 'purple')
+ax[1].set_ylabel('Pendulum 2')
+ax[1].set_ylim([-10, 10])
+ax[1].set_xticks([])
+ax[1].spines['right'].set_visible(False)
+ax[1].spines['top'].set_visible(False)
+ax[2].plot(t, lowd_dim3[0:500,0], 'turquoise', t, lowd_dim3[0:500,1], 'purple')
+ax[2].set_ylabel('Pendulum 3')
+ax[2].set_xticks([])
+ax[2].set_ylim([-10, 10])
+ax[2].spines['right'].set_visible(False)
+ax[2].spines['top'].set_visible(False)
+concat_traj_norm = (concat_traj - np.mean(concat_traj, axis=0)) / np.std(concat_traj, axis=0)
+ax[3].plot(t, concat_traj_norm[0:500,0], 'turquoise', t, lowd_traj[0:500,1], 'purple')
+ax[3].set_ylabel('Linear')
+ax[3].set_xticks([])
+ax[3].spines['right'].set_visible(False)
+ax[3].spines['top'].set_visible(False)
+traj2 = lowd_traj ** 2 
+traj2 = (traj2 - np.mean(traj2, axis=0)) / np.std(traj2, axis=0)
+# import pdb; pdb.set_trace()
+ax[4].plot(t, traj2[0:500,0], 'turquoise', t, traj2[0:500,1], 'purple')
+ax[4].set_ylabel('Nonlinear')
+ax[4].set_xticks([])
+ax[4].spines['right'].set_visible(False)
+ax[4].spines['top'].set_visible(False)
+ax[5].imshow(concat_rates[0:500,:].T/0.01, extent=[0, 500, 0, 60], cmap='viridis', vmin=0, vmax=500)
+ax[5].set_xticklabels([0, 2, 4, 6, 8, 10])
+ax[5].set_ylabel('Firing Rates \n Linear')
+ax[5].set_xticks([])
+ax[5].spines['right'].set_visible(False)
+ax[5].spines['top'].set_visible(False)
+ax[6].imshow(de[0,0:500,:].T, extent=[0, 500, 0, 60], cmap='binary', vmax=0.1)
+ax[6].set_ylabel('Spikes \n Linear')
+ax[6].set_xticklabels([0, 2, 4, 6, 8, 10])
+ax[6].spines['right'].set_visible(False)
+ax[6].spines['top'].set_visible(False)
+log_mean = np.matmul(traj2, w_mean) 
+fr_mod = (np.random.rand(1,data_dim)-0.5)*bias
+mean = np.exp(log_mean) + baseline_fr + fr_mod
+concat_rates = mean
+concat_rates[concat_rates <= 0] = concat_rates[concat_rates<=0] * -1
+traj2_spikes = [ np.random.poisson(concat_rates*dt) for i in range(n_trials)] 
+traj2_spikes = np.stack(traj2_spikes)
+ax[7].imshow(concat_rates[0:500,:].T/0.01, extent=[0, 500, 0, 60], cmap='viridis', vmin=0, vmax=500)
+ax[7].set_xticklabels([0, 2, 4, 6, 8, 10])
+ax[7].set_ylabel('Firing Rates \n Nonlinear')
+ax[7].set_xticks([])
+ax[7].spines['right'].set_visible(False)
+ax[7].spines['top'].set_visible(False)
+ax[8].imshow(traj2_spikes[0,0:500,:].T, extent=[0, 500, 0, 60], cmap='binary', vmax=0.1)
+ax[8].set_ylabel('Spikes \n Nonlinear')
+ax[8].set_xticklabels([0, 2, 4, 6, 8, 10])
+ax[8].set_xlabel('Time (s)')
+ax[8].spines['right'].set_visible(False)
+ax[8].spines['top'].set_visible(False)
+plt.show()
  # the below allows us to go from 
  # create 3d array shape trials x cond*time x dim
-de = np.stack(concat_data)
+import pdb; pdb.set_trace()
 n_samples, time_cond, dim = de.shape
 # get original locations of data for reconstruction
 concat_inds = np.arange(de.shape[1])
