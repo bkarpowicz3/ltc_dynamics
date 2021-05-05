@@ -23,19 +23,19 @@ cfg.TRAIN.DATA.PREFIX = 'lfads'
 experiments = {
     'lfads_nonlinear_coupling': 
         ['/snel/home/brianna/projects/deep_learning_project/lfads_input_nonlinear_coupling/',
-        '/snel/home/brianna/projects/deep_learning_project/lfads_output_nonlinear_coupling_updatedhps/'],
+        '/snel/home/brianna/projects/deep_learning_project/lfads_output_nonlinear_coupling_updatedhps2/'],
     'lfads_linear_coupling':
         ['/snel/home/brianna/projects/deep_learning_project/lfads_input_linear_coupling/',
-        '/snel/home/brianna/projects/deep_learning_project/lfads_output_linear_coupling_updatedhps/'],
+        '/snel/home/brianna/projects/deep_learning_project/lfads_output_linear_coupling_updatedhps2/'],
     'lfads_concat3': 
         ['/snel/home/brianna/projects/deep_learning_project/lfads_input_concat3/',
         '/snel/home/brianna/projects/deep_learning_project/lfads_output_concat3/'],
     'ltc_nonlinear_coupling': 
         ['/snel/home/brianna/projects/deep_learning_project/lfads_input_nonlinear_coupling/',
-        '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_nonlin_osc'],
+        '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_nonlin_osc_co_dim_12/'],
     'ltc_linear_coupling': 
         ['/snel/home/brianna/projects/deep_learning_project/lfads_input_linear_coupling/',
-        '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_lin_osc']
+        '/snel/home/lwimala/tmp/cs7643_project/project_runs/ltc_output_lin_osc_co_dim_12_final/']
     }
 
 data = {}
@@ -60,13 +60,17 @@ for ex in experiments:
     lfads_output = load_posterior_averages(cfg.TRAIN.MODEL_DIR, merge_tv=True)
     lfads_rates = lfads_output.rates
     lfads_factors = lfads_output.factors
+    gen_states = lfads_output.gen_states
+    con_output = lfads_output.gen_inputs
 
     data[ex] = {'spikes': spikes,
                 'rates': true_rates,
                 'lowd': lowd, 
                 'idx': idx,
                 'lfads_rates': lfads_rates,
-                'lfads_factors': lfads_factors}
+                'lfads_factors': lfads_factors,
+                'gen_states': gen_states,
+                'con_output': con_output}
 
     # Training Curves 
 
@@ -120,12 +124,16 @@ for ex in experiments:
     spikes = d['spikes']
     true_rates = d['rates']
     lowd = d['lowd']
+    gen_states = d['gen_states']
+    co = d['con_output']
 
     lfads_rates_full = merge_chops(lfads_rates, chop_len, chop_olap)
     lfads_factors_full = merge_chops(lfads_factors, chop_len, chop_olap)
     spikes_full = merge_chops(spikes, chop_len, chop_olap)
     true_rates_full = merge_chops(true_rates, chop_len, chop_olap)
     lowd_full = merge_chops(lowd, chop_len, chop_olap)
+    gen_full = merge_chops(gen_states, chop_len, chop_olap)
+    co_full = merge_chops(co, chop_len, chop_olap)
 
     nchops = int(np.floor(t - chop_len) /(chop_len-chop_olap))
     end_idx = t - (chop_len + (chop_len-chop_olap)*(nchops-1))
@@ -135,23 +143,33 @@ for ex in experiments:
     spikes_full = spikes_full[:,:,chop_olap:-(end_idx+chop_olap)]
     true_rates_full = true_rates_full[:,:,chop_olap:-(end_idx+chop_olap)]
     lowd_full = lowd_full[:,:,chop_olap:-(end_idx+chop_olap)]
+    gen_full = gen_full[:,:,chop_olap:-(end_idx+chop_olap)]
+    co_full = co_full[:,:,chop_olap:-(end_idx+chop_olap)]
+
+    co_dim = co_full.shape[-1]
 
     lowd_flat = lowd_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], lowd_full.shape[3])
     lfads_rates_flat = lfads_rates_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
     lfads_factors_flat = lfads_factors_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], 12)
     spikes_flat = spikes_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
     true_rates_flat = true_rates_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], dim)
+    gen_flat = gen_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], 32)
+    co_flat = co_full.transpose((1,0,2,3)).reshape(ntrials_per_cond*nconds*lowd_full.shape[2], co_dim)
 
     data[ex]['lfads_rates_full'] = lfads_rates_full
     data[ex]['lfads_factors_full'] = lfads_factors_full
     data[ex]['spikes_full'] = spikes_full
     data[ex]['rates_full'] = true_rates_full
     data[ex]['lowd_full'] = lowd_full
+    data[ex]['gen_states_full'] = gen_full
+    data[ex]['con_ouput_full'] = co_full
     data[ex]['lowd_flat'] = lowd_flat
     data[ex]['lfads_rates_flat'] = lfads_rates_flat
     data[ex]['lfads_factors_flat'] = lfads_factors_flat
     data[ex]['spikes_flat'] = spikes_flat
     data[ex]['rates_flat'] = true_rates_flat
+    data[ex]['gen_states_flat'] = gen_flat
+    data[ex]['con_output_flat'] = co_flat
 
 #%% Quantify reconstruction of firing rates 
 def R2(x, y):
@@ -223,7 +241,7 @@ fig.suptitle('Estimation of Firing Rates')
 plt.savefig('firing_rates_time.png')
 
 # %% Estimate of actual dynamics 
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 
 lfads_factors_vaf = []
 ltc_factors_vaf = []
@@ -286,7 +304,7 @@ for ex in experiments:
     x = lfads_factors_flat
     y = lowd_flat
     # fits intercept
-    lr = LinearRegression().fit(x,y) # object
+    lr = Ridge().fit(x,y) # object
 
     # get predictions
     lowd_hat = lr.predict(x)
@@ -303,4 +321,59 @@ for ex in experiments:
     fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
     plt.savefig('dynamics_components_'+ex+'.png')
 
+# %% Prediction of component dynamics from gen states 
+
+lowd_flat = data['lfads_concat3']['lowd_flat']
+
+for ex in experiments: 
+    label = 'GRU-LFADS' if 'lfads' in ex else 'LTC-LFADS'
+    lfads_factors_flat = data[ex]['gen_states_flat']
+
+    x = lfads_factors_flat
+    y = lowd_flat
+    # fits intercept
+    lr = LinearRegression().fit(x,y) # object
+
+    # get predictions
+    lowd_hat = lr.predict(x)
+    r2 = R2(y, lowd_hat)
+    print(r2)
+
+    n_dynamics = lowd_hat.shape[-1]
+    fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
+    for ii in range(n_dynamics):
+        ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
+        ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
+        ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
+    ax[0].legend()
+    fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
+    plt.savefig('dynamics_components_gen_states_'+ex+'.png')
+
+
+# %%
+lowd_flat = data['lfads_concat3']['lowd_flat']
+
+for ex in experiments: 
+    label = 'GRU-LFADS' if 'lfads' in ex else 'LTC-LFADS'
+    lfads_factors_flat = data[ex]['con_output_flat']
+
+    x = lfads_factors_flat
+    y = lowd_flat
+    # fits intercept
+    lr = LinearRegression().fit(x,y) # object
+
+    # get predictions
+    lowd_hat = lr.predict(x)
+    r2 = R2(y, lowd_hat)
+    print(r2)
+
+    n_dynamics = lowd_hat.shape[-1]
+    fig, ax = plt.subplots(n_dynamics,1, figsize=(6, 10))
+    for ii in range(n_dynamics):
+        ax[ii].plot(lowd_flat[0:500, ii], color='k', label='True')
+        ax[ii].plot(lowd_hat[0:500, ii], color='r', label=label)
+        ax[ii].set_ylabel('Dynamics Dim ' + str(ii))
+    ax[0].legend()
+    fig.suptitle('Estimation of Component Dynamics - ' + ex + '\n Mean VAF = ' + str(np.mean(r2)))
+    plt.savefig('dynamics_components_con_'+ex+'.png')
 # %%
